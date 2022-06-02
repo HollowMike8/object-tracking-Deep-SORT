@@ -194,8 +194,8 @@ def gate_cost_matrix(kf, cost_matrix, tracks, detections, track_indices,
     
     for row, track_idx in enumerate(track_indices):
         track = tracks[track_idx]
-        gating_distance = kf[track_idx-1].gating_distance(measurements, 
-                                                          only_position)  
+        gating_distance = kf[track.track_id-1].gating_distance(measurements, 
+                                                               only_position)  
         
         cost_matrix[row, gating_distance > gating_threshold] = gated_cost
         

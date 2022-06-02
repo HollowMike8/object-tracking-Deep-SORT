@@ -114,7 +114,7 @@ class Tracker(object):
         This function should be called once every time step, before `update`.
         '''
         for i,track in enumerate(self.tracks):
-            track.predict(self.kf[i])
+            track.predict(self.kf[track.track_id-1])
     
     def update(self, detections):
         '''
@@ -131,7 +131,7 @@ class Tracker(object):
 
         # Update track set.
         for track_idx, detection_idx in matches:
-            self.tracks[track_idx].update(self.kf[track_idx-1], 
+            self.tracks[track_idx].update(self.kf[self.tracks[track_idx].track_id-1], 
                                           detections[detection_idx])
             
         for track_idx in unmatched_tracks:

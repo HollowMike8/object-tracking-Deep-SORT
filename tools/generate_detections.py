@@ -17,10 +17,12 @@ def _run_in_batches(f, data_dict, out, batch_size):
     for i in range(num_batches):
         s, e = i * batch_size, (i + 1) * batch_size
         batch_data_dict = {k: v[s:e] for k, v in data_dict.items()}
-        out[s:e] = f(batch_data_dict)
+        batch_data_dict['phase_train_placeholder'] = False
+        out[s:e] = f(batch_data_dict)[0]
     if e < len(out):
         batch_data_dict = {k: v[e:] for k, v in data_dict.items()}
-        out[e:] = f(batch_data_dict)
+        batch_data_dict['phase_train_placeholder'] = False
+        out[e:] = f(batch_data_dict)[0]
 
 def extract_image_patch(image, bbox, patch_shape):
     '''
@@ -71,32 +73,33 @@ def extract_image_patch(image, bbox, patch_shape):
 
 class ImageEncoder(object):
 
-    def __init__(self, checkpoint_filename, input_name="images",
-                 output_name="features"):
+    def __init__(self, checkpoint_filename, input_name="input",
+                 output_name="embeddings"):
         self.session = tf.Session()
         with tf.gfile.GFile(checkpoint_filename, "rb") as file_handle:
             graph_def = tf.GraphDef()
             graph_def.ParseFromString(file_handle.read())
         tf.import_graph_def(graph_def, name="net")
-        self.input_var = tf.get_default_graph().get_tensor_by_name(
-            "%s:0" % input_name)
-        self.output_var = tf.get_default_graph().get_tensor_by_name(
-            "%s:0" % output_name)
-
-        assert len(self.output_var.get_shape()) == 2
-        assert len(self.input_var.get_shape()) == 4
-        self.feature_dim = self.output_var.get_shape().as_list()[-1]
-        self.image_shape = self.input_var.get_shape().as_list()[1:]
-
+        
+        self.images_placeholder = tf.get_default_graph().\
+                                  get_tensor_by_name("%s:0" % input_name)
+        self.embeddings = tf.get_default_graph().\
+                          get_tensor_by_name("%s:0" % output_name)
+        self.phase_train_placeholder = tf.get_default_graph().\
+                                       get_tensor_by_name("phase_train:0")
+        
+        self.feature_dim = self.embeddings.get_shape().as_list()[-1]
+        self.image_shape = [160, 160]
+        
     def __call__(self, data_x, batch_size=32):
         out = np.zeros((len(data_x), self.feature_dim), np.float32)
         _run_in_batches(
-            lambda x: self.session.run(self.output_var, feed_dict=x),
-            {self.input_var: data_x}, out, batch_size)
+            lambda x: self.session.run(self.embeddings, feed_dict=x),
+            {self.images_placeholder: data_x}, out, batch_size)
         return out
 
-def create_box_encoder(model_filename, input_name="images",
-                       output_name="features", batch_size=32):
+def create_box_encoder(model_filename, input_name="input",
+                       output_name="embeddings", batch_size=32):
     image_encoder = ImageEncoder(model_filename, input_name, output_name)
     image_shape = image_encoder.image_shape
 

@@ -45,7 +45,7 @@ max_cosine_distance = 0.5
 nn_budget = None
 IoU_threshold = 0.8
 
-model_filename = 'model_data/20180402-114759.pb'
+model_filename = 'model_data_facenet/20180402-114759.pb'
 encoder = gdet.create_box_encoder(model_filename, batch_size=1)
 metric = nn_matching.NearestNeighborDistanceMetric('cosine', 
                                                    max_cosine_distance, nn_budget)

@@ -9,21 +9,6 @@ physical_devices = tf.config.experimental.list_physical_devices('GPU')
 if len(physical_devices) > 0:
     tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-def _run_in_batches(f, data_dict, out, batch_size):
-    data_len = len(out)
-    num_batches = int(data_len / batch_size)
-
-    s, e = 0, 0
-    for i in range(num_batches):
-        s, e = i * batch_size, (i + 1) * batch_size
-        batch_data_dict = {k: v[s:e] for k, v in data_dict.items()}
-        batch_data_dict['phase_train_placeholder'] = False
-        out[s:e] = f(batch_data_dict)[0]
-    if e < len(out):
-        batch_data_dict = {k: v[e:] for k, v in data_dict.items()}
-        batch_data_dict['phase_train_placeholder'] = False
-        out[e:] = f(batch_data_dict)[0]
-
 def extract_image_patch(image, bbox, patch_shape):
     '''
     Extract image patch from bounding box.
@@ -91,9 +76,24 @@ class ImageEncoder(object):
         self.feature_dim = self.embeddings.get_shape().as_list()[-1]
         self.image_shape = [160, 160, 3]
         
+    def _run_in_batches(self, f, data_dict, out, batch_size):
+        data_len = len(out)
+        num_batches = int(data_len / batch_size)
+
+        s, e = 0, 0
+        for i in range(num_batches):
+            s, e = i * batch_size, (i + 1) * batch_size
+            batch_data_dict = {k: v[s:e] for k, v in data_dict.items()}
+            batch_data_dict[self.phase_train_placeholder] = False
+            out[s:e] = f(batch_data_dict)[0]
+        if e < len(out):
+            batch_data_dict = {k: v[e:] for k, v in data_dict.items()}
+            batch_data_dict[self.phase_train_placeholder] = False
+            out[e:] = f(batch_data_dict)[0]
+        
     def __call__(self, data_x, batch_size=32):
         out = np.zeros((len(data_x), self.feature_dim), np.float32)
-        _run_in_batches(
+        self._run_in_batches(
             lambda x: self.session.run(self.embeddings, feed_dict=x),
             {self.images_placeholder: data_x}, out, batch_size)
         return out

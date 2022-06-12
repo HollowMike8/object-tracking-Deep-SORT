@@ -89,7 +89,7 @@ class ImageEncoder(object):
                                        get_tensor_by_name("phase_train:0")
         
         self.feature_dim = self.embeddings.get_shape().as_list()[-1]
-        self.image_shape = [160, 160]
+        self.image_shape = [160, 160, 3]
         
     def __call__(self, data_x, batch_size=32):
         out = np.zeros((len(data_x), self.feature_dim), np.float32)

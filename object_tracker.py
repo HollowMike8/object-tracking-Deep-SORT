@@ -35,8 +35,8 @@ trks_dict = {}
 
 #=============================================================================
 # load the yolov3 model
-weightsPath = os.path.join(path_dir, "yolo_coco", "yolov3.weights")
-configPath = os.path.join(path_dir, "yolo_coco", "yolov3.cfg")
+weightsPath = os.path.join(path_dir, "yolo_coco", "yolov4.weights")
+configPath = os.path.join(path_dir, "yolo_coco", "yolov4.cfg")
 
 net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
 

@@ -14,14 +14,14 @@ colors = np.random.randint(0, 255, size=(len(labels), 3), dtype = "uint8")
 
 def yolo_predict(frame, net, *args):
     '''
-    Run the prediction to detect objects in a frame using YOLOv3.
+    Run the prediction to detect objects in a frame using YOLOv4.
 
     Parameters
     ----------
     frame : ndarray
         Video frame from which the objects are to be detected and tracked.
     net : 
-        YOLOV3 model.
+        YOLOV4 model.
     *args : String
         Class labels that are of interest to the user
 
@@ -42,39 +42,28 @@ def yolo_predict(frame, net, *args):
     classLabels = []
     
     (h,w) = frame.shape[:2]
-    
-    # determine only *output* layer names we need from yolo (3 output layers)
-    layer_names = net.getLayerNames()
-    layer_names = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 
-    # construct a blob from the input image and then perform a forward pass
-    blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (416, 416), swapRB=True, 
-                                 crop=False)
+    # construct a model from the net (YOLOv4) and set input params
+    model = cv2.dnn_DetectionModel(net)
+    model.setInputParams(scale = 1 / 255.0, size = (416, 416), swapRB = True)
     
     # forward pass 
-    net.setInput(blob)
-    layerOutputs = net.forward(layer_names)
+    classIds, scores, bboxes = model.detect(frame, 
+                                           confThreshold=config.yolo_thres_confidence)
 
-    # loop over each layer of the outputs (3)
-    for output in layerOutputs:
-        # loop over the detections in each output
-        for detection in output:
-            scores = detection[5:]
-            classID = np.argmax(scores)
-            confidence = scores[classID]
-    
-            # consider only predictions with confidence > threshold
-            if confidence > config.yolo_thres_confidence and labels[classID] in args:
-                # scale the bounding box parameters
-                box = detection[0:4] * np.array([w, h, w, h])
-                (centerX, centerY, width, height) = box.astype("int")
-    
-                # find the corner points for cv2.rectangle
-                startX = int(centerX - (width/2))
-                startY = int(centerY - (height/2))
-                
-                boxes.append([startX, startY, int(width), int(height)])
-                confidences.append(float(confidence))
-                classLabels.append(labels[classID])
+    # loop over the output to extract desired classes
+    for (classId, score, box) in zip(classIds, scores, bboxes):
+        if labels[classId] in args:
+            # scale the bounding box parameters
+            box = box[0:4] * np.array([w, h, w, h])
+            (minX, minY, width, height) = box.astype("int")
+        
+            # find the corner points for cv2.rectangle
+            startX = int(minX)
+            startY = int(minY)
+            
+            boxes.append([startX, startY, int(width), int(height)])
+            confidences.append(float(score))
+            classLabels.append(labels[classId])
 
     return boxes, confidences, classLabels
